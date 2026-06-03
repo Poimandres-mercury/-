@@ -61,7 +61,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'PingFang 
 .hero-card{margin:14px 16px 0;position:relative;overflow:hidden}
 .hero-meta{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:14px}
 .hero-symbol-wrap{display:flex;justify-content:center;margin:4px 0}
-.hero-symbol{font-size:72px;line-height:1;animation:pulse 2s ease-in-out infinite}
+.hero-symbol{font-size:72px;line-height:1.1;animation:pulse 2s ease-in-out infinite;font-family:'Apple Color Emoji','Segoe UI Emoji',serif;display:block;text-align:center}
 @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
 .hero-name{text-align:center;font-size:28px;font-weight:700;color:#fff;margin-top:8px}
 .hero-time{text-align:center;font-size:15px;color:rgba(255,255,255,0.65);font-variant-numeric:tabular-nums;margin-top:4px}
@@ -101,10 +101,10 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,'PingFang 
 .hour-row-inner{display:flex;align-items:center;padding:11px 14px;gap:10px;background:var(--card);border:0.5px solid var(--border)}
 .hour-row.current .hour-row-inner{border-width:0.8px}
 .hour-seq{font-size:10px;color:rgba(255,255,255,0.25);width:18px;flex-shrink:0;font-variant-numeric:tabular-nums}
-.hour-planet-icon{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.hour-planet-icon{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;font-family:'Apple Color Emoji','Segoe UI Emoji',serif}
 .hour-info{flex:1;min-width:0}
 .hour-name-row{display:flex;align-items:center;gap:6px}
-.hour-name{font-size:14px;color:rgba(255,255,255,0.8)}
+.hour-name{font-size:14px;color:rgba(255,255,255,0.8);letter-spacing:0.02em}
 .hour-row.current .hour-name{font-weight:600;color:#fff}
 .now-badge{font-size:9px;font-weight:600;padding:2px 7px;border-radius:10px}
 .hour-kw{font-size:10px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -297,6 +297,10 @@ input[type=date]{width:100%;background:rgba(255,255,255,0.05);border:0.5px solid
         <span class="form-label">城市</span>
         <input class="form-input" id="city-input" placeholder="北京 / Tokyo / Paris" autocomplete="off">
         <button style="background:none;border:none;color:var(--gold);font-size:12px;cursor:pointer;padding:0 0 0 8px" onclick="geocodeCity()">解析</button>
+      </div>
+      <div class="form-row" style="padding:6px 0">
+        <span class="form-label" style="font-size:11px">时区</span>
+        <span id="tz-display" style="font-size:11px;color:var(--muted)">解析城市后自动获取</span>
       </div>
       <div class="form-row">
         <span class="form-label">纬度</span>
@@ -551,9 +555,11 @@ function loadDayView(date) {
   hours.forEach(h => list.appendChild(buildHourRow(h, true)));
 }
 
-function buildHourRow(h, showExpand=false) {
+function buildHourRow(h, showExpand=false, tz=null) {
   const wrap = document.createElement('div');
   const isCur = h.isCurrent || (h.start <= new Date() && h.end > new Date());
+  const startTime = h.startStr || fmtTime(h.start, tz);
+  const endTime   = h.endStr   || fmtTime(h.end,   tz);
   wrap.className = 'hour-row' + (isCur ? ' current' : '');
   wrap.style.cssText = isCur ? `border:0.5px solid ${h.planet.color}55` : '';
 
@@ -619,6 +625,9 @@ function updateSearchDateLabel() {
 
 document.getElementById('search-date-btn').onclick = () => openModal('search');
 
+// 当前查询使用的时区
+let searchTimezone = null;
+
 async function geocodeCity() {
   const city = document.getElementById('city-input').value.trim();
   if (!city) return;
@@ -627,9 +636,20 @@ async function geocodeCity() {
       { headers: { 'User-Agent': 'PlanetaryHoursApp/1.0' }});
     const j = await r.json();
     if (j.length > 0) {
-      document.getElementById('lat-input').value = parseFloat(j[0].lat).toFixed(4);
-      document.getElementById('lon-input').value = parseFloat(j[0].lon).toFixed(4);
+      const lat = parseFloat(j[0].lat).toFixed(4);
+      const lon = parseFloat(j[0].lon).toFixed(4);
+      document.getElementById('lat-input').value = lat;
+      document.getElementById('lon-input').value = lon;
       document.getElementById('search-error').style.display = 'none';
+      // 自动获取该坐标的时区
+      try {
+        const tzR = await fetch(`https://timeapi.io/api/TimeZone/coordinate?latitude=${lat}&longitude=${lon}`);
+        const tzJ = await tzR.json();
+        searchTimezone = tzJ.timeZone || guessTimezoneByLonLat(parseFloat(lat), parseFloat(lon));
+      } catch {
+        searchTimezone = guessTimezoneByLonLat(parseFloat(lat), parseFloat(lon));
+      }
+      document.getElementById('tz-display').textContent = `时区: ${searchTimezone}`;
     } else {
       showSearchError('找不到该城市，请直接输入经纬度');
     }
@@ -642,6 +662,7 @@ function runSearch() {
 
   let lat = userLat, lon = userLon;
   const useCur = document.getElementById('use-cur-loc').checked;
+  let queryTZ = null; // null = 用设备本地时区
 
   if (!useCur) {
     lat = parseFloat(document.getElementById('lat-input').value);
@@ -650,13 +671,15 @@ function runSearch() {
       showSearchError('请输入有效经纬度或先解析城市名');
       return;
     }
+    // 使用该地点的时区（已通过geocodeCity获取，或fallback估算）
+    queryTZ = searchTimezone || guessTimezoneByLonLat(lat, lon);
   }
 
   if (lat === null) { showSearchError('请先允许定位或输入坐标'); return; }
 
-  const hours = getDisplayHours(searchDate, lat, lon);
-  const st    = getSunTimes(searchDate, lat, lon);
-  const ruler = getWeekRuler(searchDate);
+  const hours = getDisplayHours(searchDate, lat, lon, queryTZ);
+  const st    = getSunTimes(searchDate, lat, lon, queryTZ);
+  const ruler = getWeekRuler(searchDate, queryTZ);
 
   const res = document.getElementById('search-results');
   res.innerHTML = `
