@@ -545,8 +545,8 @@ function loadDayView(date) {
 
   // 日出日落
   const st = getSunTimes(date, userLat, userLon);
-  document.getElementById('day-sunrise').textContent = fmtTime(st.sunrise);
-  document.getElementById('day-sunset').textContent  = fmtTime(st.sunset);
+  document.getElementById('day-sunrise').textContent = fmtTime(st.sunrise, null);
+  document.getElementById('day-sunset').textContent  = fmtTime(st.sunset, null);
 
   // 行星时列表
   const hours = getDisplayHours(date, userLat, userLon);
@@ -580,7 +580,7 @@ function buildHourRow(h, showExpand=false, tz=null) {
       <div class="hour-kw">${h.planet.keywords}</div>
     </div>
     <div class="hour-time-col">
-      <div class="hour-time" style="color:${isCur?'#fff':'var(--muted)'}">${fmtTime(h.start)}</div>
+      <div class="hour-time" style="color:${isCur?'#fff':'var(--muted)'}">${startTime}</div>
       <div class="hour-daynight">${h.isDay?'☀':'☽'} ${h.isDay?'昼':'夜'}${h.hourNum}</div>
     </div>
     ${showExpand?'<span class="hour-expand">›</span>':''}`;
@@ -592,7 +592,7 @@ function buildHourRow(h, showExpand=false, tz=null) {
     detail.className = 'hour-detail';
     detail.innerHTML = `
       <div class="hour-detail-time" style="color:${h.planet.color}99">
-        ⏱ ${fmtTime(h.start)} — ${fmtTime(h.end)}</div>
+        ⏱ ${startTime} — ${endTime}</div>
       <div class="detail-row">✦ <strong>适合：</strong>${h.planet.meaning}</div>
       <div class="detail-magic" style="color:${h.planet.color}cc">✦ <strong>魔法：</strong>${h.planet.magic}</div>`;
 
@@ -693,12 +693,12 @@ function runSearch() {
         </div>
       </div>
       <div class="sun-bar" style="padding:0 0 10px">
-        <span>🌅 ${fmtTime(st.sunrise)}</span>
-        <span>🌇 ${fmtTime(st.sunset)}</span>
+        <span>🌅 ${fmtTime(st.sunrise, queryTZ)}</span>
+        <span>🌇 ${fmtTime(st.sunset, queryTZ)}</span>
       </div>
     </div>`;
 
-  hours.forEach(h => res.appendChild(Object.assign(buildHourRow(h, true), {style:'margin:0 16px 8px'})));
+  hours.forEach(h => res.appendChild(Object.assign(buildHourRow(h, true, queryTZ), {style:'margin:0 16px 8px'})));
 }
 
 function showSearchError(msg) {
