@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192">
+  <rect width="192" height="192" rx="40" fill="#180808"/>
+  <rect width="192" height="192" rx="40" fill="url(#bg2)" opacity="0.6"/>
+  <defs>
+    <radialGradient id="bg2" cx="50%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#3a0808"/>
+      <stop offset="100%" stop-color="#180808"/>
+    </radialGradient>
+    <linearGradient id="gold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFF5B0"/>
+      <stop offset="30%" stop-color="#E8C030"/>
+      <stop offset="70%" stop-color="#B08010"/>
+      <stop offset="100%" stop-color="#E8C030"/>
+    </linearGradient>
+    <linearGradient id="goldV" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFF5B0"/>
+      <stop offset="40%" stop-color="#E0B820"/>
+      <stop offset="100%" stop-color="#8B5A00"/>
+    </linearGradient>
+  </defs>
+  <!-- 外圆框 -->
+  <circle cx="96" cy="96" r="88" fill="none" stroke="url(#gold)" stroke-width="2.5"/>
+  <circle cx="96" cy="96" r="83" fill="none" stroke="#FFF5A0" stroke-width="0.5" opacity="0.3"/>
+  <!-- 权杖 -->
+  <rect x="94" y="62" width="4" height="92" rx="2" fill="url(#goldV)"/>
+  <!-- 顶部球 -->
+  <circle cx="96" cy="58" r="10" fill="#180808" stroke="url(#gold)" stroke-width="2"/>
+  <circle cx="96" cy="58" r="6" fill="url(#gold)" opacity="0.9"/>
+  <!-- 左翅膀 -->
+  <path d="M96 72 C84 66,70 62,52 64 C60 68,72 71,80 75 C68 70,54 70,42 74 C52 77,66 77,76 78 Z"
+        fill="url(#gold)" stroke="#8B5A00" stroke-width="0.5"/>
+  <!-- 右翅膀 -->
+  <path d="M96 72 C108 66,122 62,140 64 C132 68,120 71,112 75 C124 70,138 70,150 74 C140 77,126 77,116 78 Z"
+        fill="url(#gold)" stroke="#8B5A00" stroke-width="0.5"/>
+  <!-- 左蛇 -->
+  <path d="M90 80 C78 83,70 90,74 99 C78 108,90 110,92 119 C94 128,90 136,82 140 C74 144,66 143,65 151 C64 159,72 166,80 169"
+        fill="none" stroke="url(#gold)" stroke-width="7" stroke-linecap="round"/>
+  <path d="M90 80 C78 83,70 90,74 99 C78 108,90 110,92 119 C94 128,90 136,82 140 C74 144,66 143,65 151 C64 159,72 166,80 169"
+        fill="none" stroke="#FFF8C0" stroke-width="1.5" stroke-linecap="round" opacity="0.4"/>
+  <!-- 右蛇 -->
+  <path d="M102 80 C114 83,122 90,118 99 C114 108,102 110,100 119 C98 128,102 136,110 140 C118 144,126 143,127 151 C128 159,120 166,112 169"
+        fill="none" stroke="url(#gold)" stroke-width="7" stroke-linecap="round"/>
+  <path d="M102 80 C114 83,122 90,118 99 C114 108,102 110,100 119 C98 128,102 136,110 140 C118 144,126 143,127 151 C128 159,120 166,112 169"
+        fill="none" stroke="#FFF8C0" stroke-width="1.5" stroke-linecap="round" opacity="0.4"/>
+  <!-- 交叉节点 -->
+  <circle cx="96" cy="100" r="4" fill="#180808" stroke="url(#gold)" stroke-width="1.5"/>
+  <circle cx="96" cy="100" r="1.5" fill="#E8C030"/>
+  <circle cx="96" cy="130" r="4" fill="#180808" stroke="url(#gold)" stroke-width="1.5"/>
+  <circle cx="96" cy="130" r="1.5" fill="#E8C030"/>
+  <!-- 蛇头 -->
+  <ellipse cx="87" cy="77" rx="8" ry="5" fill="#C89010" stroke="#8B5A00" stroke-width="0.8"/>
+  <circle cx="91" cy="75.5" r="1.5" fill="#0a0200"/>
+  <ellipse cx="105" cy="77" rx="8" ry="5" fill="#C89010" stroke="#8B5A00" stroke-width="0.8"/>
+  <circle cx="101" cy="75.5" r="1.5" fill="#0a0200"/>
+</svg>

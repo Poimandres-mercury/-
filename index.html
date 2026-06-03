@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#080818">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="行星时">
+<link rel="manifest" href="/public/manifest.json">
+<link rel="apple-touch-icon" href="/public/icon-192.png">
+<title>行星时 · Planetary Hours</title>
+<script src="/src/engine.js"></script>
+<style>
+:root {
+  --bg: #080818; --card: #111128; --border: rgba(255,255,255,0.08);
+  --gold: #F0C040; --muted: rgba(255,255,255,0.45);
+  --text: #E8E8F0; --radius: 18px;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,'PingFang SC',sans-serif;
+  min-height:100vh;overflow-x:hidden}
+.safe-top{height:calc(var(--safe-top) + 8px)}
+
+/* ── 导航栏 ── */
+.tabs{display:flex;background:rgba(8,8,24,0.95);backdrop-filter:blur(20px);
+  border-top:0.5px solid var(--border);padding:8px 0 calc(8px + var(--safe-bottom));
+  position:fixed;bottom:0;left:0;right:0;z-index:100}
+.tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;
+  padding:6px 0;cursor:pointer;transition:all 0.2s;border:none;background:none}
+.tab-icon{font-size:22px;line-height:1}
+.tab-label{font-size:10px;color:var(--muted);transition:color 0.2s}
+.tab.active .tab-label{color:var(--gold)}
+
+/* ── 页面 ── */
+.page{display:none;padding-bottom:calc(80px + var(--safe-bottom));min-height:100vh}
+.page.active{display:block}
+.scroll{overflow-y:auto;-webkit-overflow-scrolling:touch}
+
+/* ── 通用卡片 ── */
+.card{background:var(--card);border:0.5px solid var(--border);border-radius:var(--radius);padding:18px}
+.section-title{font-size:11px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;
+  margin:20px 16px 10px}
+
+/* ── 顶栏 ── */
+.topbar{padding:calc(var(--safe-top) + 16px) 20px 0;display:flex;justify-content:space-between;align-items:flex-start}
+.topbar h1{font-size:28px;font-weight:700;color:#fff}
+.topbar .subtitle{font-size:12px;color:var(--muted);margin-top:3px}
+.topbar-right{display:flex;gap:10px;align-items:center;margin-top:4px}
+.icon-btn{background:none;border:none;font-size:20px;color:var(--muted);cursor:pointer;padding:4px}
+
+/* ── 星期主宰横幅 ── */
+.ruler-card{display:flex;align-items:center;gap:14px;margin:14px 16px 0}
+.ruler-symbol-wrap{width:50px;height:50px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0}
+.ruler-info .date{font-size:12px;color:var(--muted)}
+.ruler-info .name{font-size:17px;font-weight:600;margin-top:2px}
+
+/* ── 当前行星时主卡 ── */
+.hero-card{margin:14px 16px 0;position:relative;overflow:hidden}
+.hero-meta{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:14px}
+.hero-symbol-wrap{display:flex;justify-content:center;margin:4px 0}
+.hero-symbol{font-size:72px;line-height:1;animation:pulse 2s ease-in-out infinite}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
+.hero-name{text-align:center;font-size:28px;font-weight:700;color:#fff;margin-top:8px}
+.hero-time{text-align:center;font-size:15px;color:rgba(255,255,255,0.65);font-variant-numeric:tabular-nums;margin-top:4px}
+.hero-keywords{text-align:center;font-size:14px;margin-top:8px}
+.progress-wrap{margin-top:18px}
+.progress-bar{height:5px;background:rgba(255,255,255,0.1);border-radius:3px;overflow:hidden}
+.progress-fill{height:100%;border-radius:3px;transition:width 1s linear}
+.progress-labels{display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-top:5px}
+.magic-toggle{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:16px;
+  background:none;border:none;cursor:pointer;font-size:13px;font-weight:500;padding:8px 18px;
+  border-radius:20px;transition:all 0.2s}
+
+/* ── 活动卡 ── */
+.activity-card{margin:12px 16px 0}
+.act-section{margin-bottom:10px}
+.act-label{font-size:12px;font-weight:600;margin-bottom:5px;display:flex;align-items:center;gap:5px}
+.act-text{font-size:13px;line-height:1.7;color:rgba(255,255,255,0.82)}
+.act-avoid{font-size:12px;color:var(--muted);line-height:1.6}
+.divider{height:0.5px;background:var(--border);margin:10px 0}
+
+/* ── 魔法卡 ── */
+.magic-card{margin:10px 16px 0;display:none;animation:fadeIn 0.3s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+.magic-card.visible{display:block}
+.magic-gradient{background:linear-gradient(135deg,rgba(240,192,64,0.08),transparent)}
+
+/* ── 全天列表 ── */
+.day-header{padding:calc(var(--safe-top)+16px) 20px 0;display:flex;justify-content:space-between;align-items:center}
+.day-header h1{font-size:26px;font-weight:700;color:#fff}
+.date-btn{display:flex;align-items:center;gap:5px;background:rgba(240,192,64,0.1);
+  border:none;color:var(--gold);font-size:12px;padding:6px 12px;border-radius:20px;cursor:pointer}
+.sun-bar{display:flex;gap:16px;padding:8px 20px;font-size:12px}
+.info-note{margin:0 16px 6px;font-size:11px;color:rgba(255,255,255,0.35);
+  background:rgba(255,255,255,0.04);padding:8px 12px;border-radius:8px}
+
+.hour-row{margin:0 16px 8px;border-radius:14px;overflow:hidden;cursor:pointer;transition:all 0.2s}
+.hour-row-inner{display:flex;align-items:center;padding:11px 14px;gap:10px;background:var(--card);border:0.5px solid var(--border)}
+.hour-row.current .hour-row-inner{border-width:0.8px}
+.hour-seq{font-size:10px;color:rgba(255,255,255,0.25);width:18px;flex-shrink:0;font-variant-numeric:tabular-nums}
+.hour-planet-icon{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.hour-info{flex:1;min-width:0}
+.hour-name-row{display:flex;align-items:center;gap:6px}
+.hour-name{font-size:14px;color:rgba(255,255,255,0.8)}
+.hour-row.current .hour-name{font-weight:600;color:#fff}
+.now-badge{font-size:9px;font-weight:600;padding:2px 7px;border-radius:10px}
+.hour-kw{font-size:10px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hour-time-col{text-align:right;flex-shrink:0}
+.hour-time{font-size:12px;font-variant-numeric:tabular-nums;font-weight:500}
+.hour-row.current .hour-time{color:#fff}
+.hour-daynight{font-size:9px;color:rgba(255,255,255,0.35);margin-top:2px}
+.hour-expand{font-size:10px;color:rgba(255,255,255,0.3);margin-left:6px}
+
+.hour-detail{display:none;padding:10px 14px 12px;background:var(--card);border-top:0.5px solid var(--border)}
+.hour-detail.open{display:block}
+.hour-detail-time{font-size:11px;font-variant-numeric:tabular-nums;margin-bottom:8px}
+.detail-row{margin-bottom:6px;font-size:12px;line-height:1.6}
+.detail-magic{font-size:12px;line-height:1.6;margin-top:6px}
+
+/* ── 查询页 ── */
+.search-header{padding:calc(var(--safe-top)+16px) 20px 0}
+.search-header h1{font-size:26px;font-weight:700;color:#fff}
+.form-card{margin:14px 16px 0}
+.form-row{display:flex;align-items:center;padding:12px 0;border-bottom:0.5px solid var(--border)}
+.form-row:last-child{border-bottom:none}
+.form-label{font-size:13px;color:var(--muted);width:56px;flex-shrink:0}
+.form-value{flex:1;font-size:14px;color:#fff}
+.form-input{flex:1;background:none;border:none;color:#fff;font-size:13px;outline:none;font-family:inherit}
+.form-input::placeholder{color:rgba(255,255,255,0.2)}
+.toggle-row{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:0.5px solid var(--border)}
+.toggle{position:relative;width:44px;height:26px;flex-shrink:0}
+.toggle input{opacity:0;width:0;height:0}
+.toggle-slider{position:absolute;inset:0;background:rgba(255,255,255,0.2);border-radius:13px;cursor:pointer;transition:0.3s}
+.toggle-slider:before{content:'';position:absolute;width:20px;height:20px;left:3px;top:3px;background:#fff;border-radius:50%;transition:0.3s}
+input:checked+.toggle-slider{background:var(--gold)}
+input:checked+.toggle-slider:before{transform:translateX(18px)}
+
+.search-btn{display:block;width:calc(100%-32px);margin:14px 16px 0;padding:15px;
+  background:var(--gold);color:#000;font-size:16px;font-weight:700;border:none;
+  border-radius:14px;cursor:pointer;transition:all 0.15s}
+.search-btn:active{transform:scale(0.97);opacity:0.9}
+
+.results-section{margin-top:4px}
+
+/* ── 日期选择弹窗 ── */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:200;align-items:flex-end}
+.modal-overlay.open{display:flex}
+.modal-sheet{background:#111130;border-radius:24px 24px 0 0;width:100%;padding:24px 20px calc(20px + var(--safe-bottom));animation:slideUp 0.3s ease}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+.modal-title{font-size:18px;font-weight:700}
+.modal-close{background:none;border:none;color:var(--gold);font-size:16px;cursor:pointer;padding:4px}
+input[type=date]{width:100%;background:rgba(255,255,255,0.05);border:0.5px solid var(--border);
+  color:#fff;font-size:16px;padding:12px 14px;border-radius:12px;outline:none;
+  -webkit-appearance:none;font-family:inherit}
+.modal-confirm{width:100%;padding:14px;background:var(--gold);color:#000;font-size:16px;font-weight:700;
+  border:none;border-radius:12px;cursor:pointer;margin-top:14px}
+
+/* ── 加载 ── */
+.loading{text-align:center;padding:60px 20px;color:var(--muted);font-size:14px}
+.spinner{width:32px;height:32px;border:2px solid rgba(240,192,64,0.2);border-top-color:var(--gold);
+  border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 12px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── 星空背景 ── */
+.stars{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden}
+.star{position:absolute;border-radius:50%;background:#fff;animation:twinkle var(--d) ease-in-out infinite var(--delay)}
+@keyframes twinkle{0%,100%{opacity:var(--min)}50%{opacity:var(--max)}}
+.content-wrap{position:relative;z-index:1}
+</style>
+</head>
+<body>
+
+<div class="stars" id="stars"></div>
+
+<div class="content-wrap">
+
+<!-- ══════════ TAB 1: 当前 ══════════ -->
+<div class="page active" id="page-now">
+  <div class="topbar">
+    <div>
+      <h1>行星时</h1>
+      <div class="subtitle" id="loc-name">📍 定位中...</div>
+    </div>
+    <div class="topbar-right">
+      <button class="icon-btn" id="notif-btn" title="通知">🔔</button>
+    </div>
+  </div>
+
+  <!-- 星期主宰 -->
+  <div class="ruler-card card" id="ruler-card">
+    <div class="ruler-symbol-wrap" id="ruler-icon-wrap">
+      <span id="ruler-symbol">☀</span>
+    </div>
+    <div class="ruler-info">
+      <div class="date" id="ruler-date">--</div>
+      <div class="name" id="ruler-name" style="color:var(--gold)">--</div>
+    </div>
+  </div>
+
+  <!-- 当前行星时主卡 -->
+  <div class="card hero-card" id="hero-card">
+    <div class="hero-meta">
+      <span id="hero-daytime">☀ 白昼</span>
+      <span id="hero-seq">第 1 行星时</span>
+    </div>
+    <div class="hero-symbol-wrap">
+      <span class="hero-symbol" id="hero-symbol">☀</span>
+    </div>
+    <div class="hero-name" id="hero-name">太阳时</div>
+    <div class="hero-time" id="hero-time">--:-- — --:--</div>
+    <div class="hero-keywords" id="hero-keywords"></div>
+    <div class="progress-wrap">
+      <div class="progress-bar">
+        <div class="progress-fill" id="progress-fill"></div>
+      </div>
+      <div class="progress-labels">
+        <span id="prog-pct">0%</span>
+        <span id="prog-remain">--分钟</span>
+      </div>
+    </div>
+    <button class="magic-toggle" id="magic-toggle">
+      <span>✦</span><span id="magic-toggle-text">查看魔法仪式</span><span id="magic-arrow">↓</span>
+    </button>
+  </div>
+
+  <!-- 活动建议 -->
+  <div class="card activity-card" id="activity-card">
+    <div class="act-section">
+      <div class="act-label" id="act-label-good">✅ 适合活动</div>
+      <div class="act-text" id="act-meaning">--</div>
+    </div>
+    <div class="divider"></div>
+    <div class="act-section">
+      <div class="act-label" style="color:var(--muted)">🚫 不宜事项</div>
+      <div class="act-avoid" id="act-avoid">--</div>
+    </div>
+  </div>
+
+  <!-- 魔法仪式 -->
+  <div class="card magic-card magic-gradient" id="magic-card">
+    <div class="act-label" id="magic-label">✦ 魔法 · 仪式</div>
+    <div class="act-text" id="magic-text">--</div>
+  </div>
+
+  <div style="height:20px"></div>
+</div>
+
+<!-- ══════════ TAB 2: 今日 ══════════ -->
+<div class="page" id="page-day">
+  <div class="day-header">
+    <h1>全天行星时</h1>
+    <button class="date-btn" id="day-date-btn">📅 <span id="day-date-label">今天</span></button>
+  </div>
+
+  <div id="day-ruler-wrap" style="margin:12px 16px 0"></div>
+
+  <div class="sun-bar" id="day-sun-bar">
+    <span>🌅 <span id="day-sunrise">--</span></span>
+    <span>🌇 <span id="day-sunset">--</span></span>
+    <span style="margin-left:auto;font-size:10px;color:rgba(255,255,255,0.3)">精确天文算法</span>
+  </div>
+
+  <div class="info-note">
+    按公历 <span id="info-date">--</span> 00:00—23:59 显示 · 点击行可展开活动与魔法建议
+  </div>
+
+  <div id="day-list"></div>
+  <div style="height:20px"></div>
+</div>
+
+<!-- ══════════ TAB 3: 查询 ══════════ -->
+<div class="page" id="page-search">
+  <div class="search-header">
+    <h1>历史查询</h1>
+    <div style="font-size:12px;color:var(--muted);margin-top:4px">任意日期 · 任意地点</div>
+  </div>
+
+  <div class="card form-card">
+    <div class="form-row">
+      <span class="form-label">日期</span>
+      <span class="form-value" id="search-date-label" style="color:var(--gold)">点击选择</span>
+      <button class="date-btn" id="search-date-btn" style="padding:4px 10px;font-size:11px">更改</button>
+    </div>
+    <div class="toggle-row">
+      <span style="font-size:13px;color:var(--muted)">使用当前位置</span>
+      <label class="toggle">
+        <input type="checkbox" id="use-cur-loc" checked>
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+    <div id="manual-loc" style="display:none">
+      <div class="form-row">
+        <span class="form-label">城市</span>
+        <input class="form-input" id="city-input" placeholder="北京 / Tokyo / Paris" autocomplete="off">
+        <button style="background:none;border:none;color:var(--gold);font-size:12px;cursor:pointer;padding:0 0 0 8px" onclick="geocodeCity()">解析</button>
+      </div>
+      <div class="form-row">
+        <span class="form-label">纬度</span>
+        <input class="form-input" id="lat-input" placeholder="如 39.9042" type="number" step="0.0001">
+      </div>
+      <div class="form-row" style="border-bottom:none">
+        <span class="form-label">经度</span>
+        <input class="form-input" id="lon-input" placeholder="如 116.4074" type="number" step="0.0001">
+      </div>
+    </div>
+  </div>
+
+  <div id="search-error" style="color:#FF6B6B;font-size:12px;padding:6px 20px;display:none"></div>
+
+  <button class="search-btn" onclick="runSearch()">🔍 查询行星时</button>
+
+  <div class="results-section" id="search-results"></div>
+  <div style="height:20px"></div>
+</div>
+
+</div><!-- content-wrap -->
+
+<!-- 导航栏 -->
+<nav class="tabs">
+  <button class="tab active" onclick="switchTab('now',this)">
+    <span class="tab-icon">🕐</span>
+    <span class="tab-label">当前</span>
+  </button>
+  <button class="tab" onclick="switchTab('day',this)">
+    <span class="tab-icon">📋</span>
+    <span class="tab-label">今日</span>
+  </button>
+  <button class="tab" onclick="switchTab('search',this)">
+    <span class="tab-icon">🔍</span>
+    <span class="tab-label">查询</span>
+  </button>
+</nav>
+
+<!-- 日期选择弹窗 -->
+<div class="modal-overlay" id="date-modal">
+  <div class="modal-sheet">
+    <div class="modal-header">
+      <span class="modal-title">选择日期</span>
+      <button class="modal-close" onclick="closeModal()">完成</button>
+    </div>
+    <input type="date" id="date-picker-input">
+    <button class="modal-confirm" onclick="confirmDate()">确认</button>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════
+// 全局状态
+// ══════════════════════════════════════
+let userLat = null, userLon = null;
+let currentHour = null;
+let dayViewDate  = new Date();
+let searchDate   = new Date();
+let dateModalTarget = 'day'; // 'day' | 'search'
+let showMagic = false;
+let updateTimer = null;
+
+// ══════════════════════════════════════
+// 初始化
+// ══════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+  makeStars();
+  initLocation();
+  setupMagicToggle();
+
+  document.getElementById('use-cur-loc').addEventListener('change', function() {
+    document.getElementById('manual-loc').style.display = this.checked ? 'none' : 'block';
+  });
+
+  // Service Worker
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/public/sw.js').catch(()=>{});
+  }
+});
+
+// ══════════════════════════════════════
+// 星星背景
+// ══════════════════════════════════════
+function makeStars() {
+  const c = document.getElementById('stars');
+  for (let i = 0; i < 60; i++) {
+    const s = document.createElement('div');
+    s.className = 'star';
+    const sz = Math.random()*2+0.5;
+    s.style.cssText = `width:${sz}px;height:${sz}px;left:${Math.random()*100}%;top:${Math.random()*100}%;`+
+      `--d:${2+Math.random()*4}s;--delay:${-Math.random()*4}s;`+
+      `--min:${0.1+Math.random()*0.2};--max:${0.5+Math.random()*0.5}`;
+    c.appendChild(s);
+  }
+}
+
+// ══════════════════════════════════════
+// 定位
+// ══════════════════════════════════════
+function initLocation() {
+  if (!navigator.geolocation) {
+    useDefaultLocation();
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      userLat = pos.coords.latitude;
+      userLon = pos.coords.longitude;
+      reverseGeocode(userLat, userLon);
+      startNowUpdater();
+      loadDayView(dayViewDate);
+    },
+    () => useDefaultLocation(),
+    { timeout: 10000, maximumAge: 300000 }
+  );
+  // 持续定位
+  navigator.geolocation.watchPosition(
+    pos => {
+      userLat = pos.coords.latitude;
+      userLon = pos.coords.longitude;
+    },
+    () => {},
+    { enableHighAccuracy: false, maximumAge: 60000 }
+  );
+}
+
+function useDefaultLocation() {
+  userLat = 39.9042; userLon = 116.4074;
+  document.getElementById('loc-name').textContent = '📍 北京（默认）';
+  startNowUpdater();
+  loadDayView(dayViewDate);
+}
+
+async function reverseGeocode(lat, lon) {
+  try {
+    const r = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=zh`,
+      { headers: { 'User-Agent': 'PlanetaryHoursApp/1.0' }});
+    const j = await r.json();
+    const a = j.address || {};
+    const city = a.city || a.town || a.county || a.state || '当前位置';
+    document.getElementById('loc-name').textContent = `📍 ${city}`;
+  } catch { document.getElementById('loc-name').textContent = '📍 当前位置'; }
+}
+
+// ══════════════════════════════════════
+// 当前页 实时更新
+// ══════════════════════════════════════
+function startNowUpdater() {
+  updateNow();
+  clearInterval(updateTimer);
+  updateTimer = setInterval(updateNow, 1000);
+}
+
+function updateNow() {
+  if (userLat === null) return;
+  const h = getCurrentHour(userLat, userLon);
+  if (!h) return;
+
+  // 检查是否切换了行星时
+  const changed = !currentHour || currentHour.planet.id !== h.planet.id ||
+                  currentHour.start.getTime() !== h.start.getTime();
+  currentHour = h;
+
+  const p    = h.planet;
+  const now  = new Date();
+  const prog = Math.max(0, Math.min(1, (now-h.start)/(h.end-h.start)));
+  const remain = Math.max(0, Math.round((h.end-now)/60000));
+
+  if (changed) {
+    // 星期主宰
+    const ruler = getWeekRuler(now);
+    document.getElementById('ruler-symbol').textContent = ruler.symbol;
+    document.getElementById('ruler-icon-wrap').style.background = ruler.color+'22';
+    document.getElementById('ruler-icon-wrap').style.border = `0.5px solid ${ruler.color}44`;
+    document.getElementById('ruler-date').textContent = fmtDate(now);
+    document.getElementById('ruler-name').textContent = `今日主宰：${ruler.name}`;
+    document.getElementById('ruler-name').style.color = ruler.color;
+
+    // 行星卡
+    document.getElementById('hero-symbol').textContent   = p.symbol;
+    document.getElementById('hero-symbol').style.color   = p.color;
+    document.getElementById('hero-name').textContent     = p.name + '时';
+    document.getElementById('hero-keywords').textContent = p.keywords;
+    document.getElementById('hero-keywords').style.color = p.color;
+    document.getElementById('hero-daytime').textContent  = h.isDay ? '☀ 白昼' : '☽ 夜晚';
+    document.getElementById('hero-seq').textContent      = `第 ${h.hourNum} 行星时（#${h.seq}）`;
+    document.getElementById('hero-card').style.borderColor = p.color+'44';
+    document.getElementById('progress-fill').style.background = p.color;
+
+    // 活动
+    document.getElementById('act-label-good').style.color = p.color;
+    document.getElementById('act-meaning').textContent    = p.meaning;
+    document.getElementById('act-avoid').textContent      = p.avoid;
+
+    // 魔法
+    document.getElementById('magic-label').style.color   = p.color;
+    document.getElementById('magic-text').textContent    = p.magic;
+    document.getElementById('magic-toggle').style.color  = p.color;
+    document.getElementById('magic-toggle').style.background = p.color+'18';
+  }
+
+  document.getElementById('hero-time').textContent  = `${fmtTime(h.start)} — ${fmtTime(h.end)}`;
+  document.getElementById('progress-fill').style.width = (prog*100)+'%';
+  document.getElementById('prog-pct').textContent   = `已过 ${Math.round(prog*100)}%`;
+  document.getElementById('prog-remain').textContent = `剩余 ${remain} 分钟`;
+}
+
+// 魔法切换
+function setupMagicToggle() {
+  document.getElementById('magic-toggle').onclick = () => {
+    showMagic = !showMagic;
+    const card = document.getElementById('magic-card');
+    card.classList.toggle('visible', showMagic);
+    document.getElementById('magic-toggle-text').textContent = showMagic ? '收起魔法仪式' : '查看魔法仪式';
+    document.getElementById('magic-arrow').textContent = showMagic ? '↑' : '↓';
+  };
+}
+
+// ══════════════════════════════════════
+// 今日页
+// ══════════════════════════════════════
+function loadDayView(date) {
+  if (userLat === null) return;
+  dayViewDate = date;
+
+  // 日期标签
+  const f = new Date(date);
+  document.getElementById('day-date-label').textContent = `${f.getMonth()+1}月${f.getDate()}日`;
+  document.getElementById('info-date').textContent = `${f.getFullYear()}年${f.getMonth()+1}月${f.getDate()}日`;
+
+  // 星期主宰
+  const ruler = getWeekRuler(date);
+  document.getElementById('day-ruler-wrap').innerHTML = `
+    <div class="card ruler-card" style="margin:0">
+      <div class="ruler-symbol-wrap" style="background:${ruler.color}22;border:0.5px solid ${ruler.color}44">
+        <span>${ruler.symbol}</span></div>
+      <div class="ruler-info">
+        <div class="date">${fmtDate(date)}</div>
+        <div class="name" style="color:${ruler.color}">今日主宰：${ruler.name}</div>
+      </div>
+    </div>`;
+
+  // 日出日落
+  const st = getSunTimes(date, userLat, userLon);
+  document.getElementById('day-sunrise').textContent = fmtTime(st.sunrise);
+  document.getElementById('day-sunset').textContent  = fmtTime(st.sunset);
+
+  // 行星时列表
+  const hours = getDisplayHours(date, userLat, userLon);
+  const list  = document.getElementById('day-list');
+  list.innerHTML = '';
+  hours.forEach(h => list.appendChild(buildHourRow(h, true)));
+}
+
+function buildHourRow(h, showExpand=false) {
+  const wrap = document.createElement('div');
+  const isCur = h.isCurrent || (h.start <= new Date() && h.end > new Date());
+  wrap.className = 'hour-row' + (isCur ? ' current' : '');
+  wrap.style.cssText = isCur ? `border:0.5px solid ${h.planet.color}55` : '';
+
+  const inner = document.createElement('div');
+  inner.className = 'hour-row-inner';
+  if (isCur) inner.style.background = h.planet.color+'12';
+
+  inner.innerHTML = `
+    <span class="hour-seq">${h.seq}</span>
+    <div class="hour-planet-icon" style="background:${h.planet.color}${isCur?'28':'12'}">
+      <span style="color:${h.planet.color};opacity:${isCur?1:0.65}">${h.planet.symbol}</span>
+    </div>
+    <div class="hour-info">
+      <div class="hour-name-row">
+        <span class="hour-name">${h.planet.name}时</span>
+        ${isCur?`<span class="now-badge" style="color:${h.planet.color};background:${h.planet.color}22">当前</span>`:''}
+      </div>
+      <div class="hour-kw">${h.planet.keywords}</div>
+    </div>
+    <div class="hour-time-col">
+      <div class="hour-time" style="color:${isCur?'#fff':'var(--muted)'}">${fmtTime(h.start)}</div>
+      <div class="hour-daynight">${h.isDay?'☀':'☽'} ${h.isDay?'昼':'夜'}${h.hourNum}</div>
+    </div>
+    ${showExpand?'<span class="hour-expand">›</span>':''}`;
+
+  wrap.appendChild(inner);
+
+  if (showExpand) {
+    const detail = document.createElement('div');
+    detail.className = 'hour-detail';
+    detail.innerHTML = `
+      <div class="hour-detail-time" style="color:${h.planet.color}99">
+        ⏱ ${fmtTime(h.start)} — ${fmtTime(h.end)}</div>
+      <div class="detail-row">✦ <strong>适合：</strong>${h.planet.meaning}</div>
+      <div class="detail-magic" style="color:${h.planet.color}cc">✦ <strong>魔法：</strong>${h.planet.magic}</div>`;
+
+    let open = false;
+    inner.onclick = () => {
+      open = !open;
+      detail.classList.toggle('open', open);
+      wrap.querySelector('.hour-expand').textContent = open ? '˅' : '›';
+    };
+    wrap.appendChild(detail);
+  }
+
+  return wrap;
+}
+
+// 日期按钮
+document.getElementById('day-date-btn').onclick = () => openModal('day');
+
+// ══════════════════════════════════════
+// 查询页
+// ══════════════════════════════════════
+// 初始化查询日期
+searchDate = new Date();
+updateSearchDateLabel();
+
+function updateSearchDateLabel() {
+  document.getElementById('search-date-label').textContent =
+    `${searchDate.getFullYear()}年${searchDate.getMonth()+1}月${searchDate.getDate()}日`;
+}
+
+document.getElementById('search-date-btn').onclick = () => openModal('search');
+
+async function geocodeCity() {
+  const city = document.getElementById('city-input').value.trim();
+  if (!city) return;
+  try {
+    const r = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(city)}&format=json&limit=1`,
+      { headers: { 'User-Agent': 'PlanetaryHoursApp/1.0' }});
+    const j = await r.json();
+    if (j.length > 0) {
+      document.getElementById('lat-input').value = parseFloat(j[0].lat).toFixed(4);
+      document.getElementById('lon-input').value = parseFloat(j[0].lon).toFixed(4);
+      document.getElementById('search-error').style.display = 'none';
+    } else {
+      showSearchError('找不到该城市，请直接输入经纬度');
+    }
+  } catch { showSearchError('网络错误，请直接输入经纬度'); }
+}
+
+function runSearch() {
+  const errEl = document.getElementById('search-error');
+  errEl.style.display = 'none';
+
+  let lat = userLat, lon = userLon;
+  const useCur = document.getElementById('use-cur-loc').checked;
+
+  if (!useCur) {
+    lat = parseFloat(document.getElementById('lat-input').value);
+    lon = parseFloat(document.getElementById('lon-input').value);
+    if (isNaN(lat) || isNaN(lon)) {
+      showSearchError('请输入有效经纬度或先解析城市名');
+      return;
+    }
+  }
+
+  if (lat === null) { showSearchError('请先允许定位或输入坐标'); return; }
+
+  const hours = getDisplayHours(searchDate, lat, lon);
+  const st    = getSunTimes(searchDate, lat, lon);
+  const ruler = getWeekRuler(searchDate);
+
+  const res = document.getElementById('search-results');
+  res.innerHTML = `
+    <div style="margin:14px 16px 0">
+      <div class="card ruler-card" style="margin:0 0 10px">
+        <div class="ruler-symbol-wrap" style="background:${ruler.color}22">
+          <span>${ruler.symbol}</span></div>
+        <div class="ruler-info">
+          <div class="date">${fmtDate(searchDate)}</div>
+          <div class="name" style="color:${ruler.color}">今日主宰：${ruler.name}</div>
+        </div>
+      </div>
+      <div class="sun-bar" style="padding:0 0 10px">
+        <span>🌅 ${fmtTime(st.sunrise)}</span>
+        <span>🌇 ${fmtTime(st.sunset)}</span>
+      </div>
+    </div>`;
+
+  hours.forEach(h => res.appendChild(Object.assign(buildHourRow(h, true), {style:'margin:0 16px 8px'})));
+}
+
+function showSearchError(msg) {
+  const el = document.getElementById('search-error');
+  el.textContent = msg; el.style.display = 'block';
+}
+
+// ══════════════════════════════════════
+// 日期弹窗
+// ══════════════════════════════════════
+function openModal(target) {
+  dateModalTarget = target;
+  const modal = document.getElementById('date-modal');
+  const inp   = document.getElementById('date-picker-input');
+  const d = target === 'day' ? dayViewDate : searchDate;
+  inp.value = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  modal.classList.add('open');
+}
+function closeModal() {
+  document.getElementById('date-modal').classList.remove('open');
+}
+function confirmDate() {
+  const v = document.getElementById('date-picker-input').value;
+  if (!v) { closeModal(); return; }
+  const [y,m,d] = v.split('-').map(Number);
+  const date = new Date(y, m-1, d);
+  if (dateModalTarget === 'day') {
+    loadDayView(date);
+  } else {
+    searchDate = date;
+    updateSearchDateLabel();
+  }
+  closeModal();
+}
+document.getElementById('date-modal').onclick = (e) => {
+  if (e.target === document.getElementById('date-modal')) closeModal();
+};
+
+// ══════════════════════════════════════
+// 标签切换
+// ══════════════════════════════════════
+function switchTab(name, el) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  el.classList.add('active');
+  if (name === 'day') loadDayView(dayViewDate);
+}
+
+// ══════════════════════════════════════
+// 通知（移动端）
+// ══════════════════════════════════════
+document.getElementById('notif-btn').onclick = async () => {
+  if (!('Notification' in window)) { alert('您的浏览器不支持通知'); return; }
+  if (Notification.permission === 'default') {
+    const p = await Notification.requestPermission();
+    if (p === 'granted') scheduleNotifications();
+  } else if (Notification.permission === 'granted') {
+    scheduleNotifications();
+    alert('✅ 已开启行星时切换提醒');
+  } else {
+    alert('请在浏览器设置中允许通知权限');
+  }
+};
+
+function scheduleNotifications() {
+  if (!userLat || Notification.permission !== 'granted') return;
+  const now   = new Date();
+  const today = calcAllHours(now, userLat, userLon);
+  const tmr   = calcAllHours(new Date(now.getTime()+86400000), userLat, userLon);
+  [...today,...tmr].filter(h=>h.start>now).slice(0,12).forEach(h => {
+    const delay = h.start - now;
+    setTimeout(() => {
+      new Notification(`${h.planet.symbol} ${h.planet.name}时开始`, {
+        body: `${h.planet.keywords}\n${fmtTime(h.start)} — ${fmtTime(h.end)}`,
+        icon: '/public/icon-192.png',
+        tag: `ph-${h.start.getTime()}`,
+        silent: false
+      });
+    }, delay);
+  });
+}
+</script>
+</body>
+</html>
