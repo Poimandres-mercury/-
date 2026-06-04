@@ -413,8 +413,22 @@ function initLocation() {
       startNowUpdater();
       loadDayView(dayViewDate);
     },
-    () => useDefaultLocation(),
-    { timeout: 10000, maximumAge: 300000 }
+    (err) => {
+      console.log('定位失败:', err.code, err.message);
+      // 在Mac Chrome上尝试低精度重试
+      navigator.geolocation.getCurrentPosition(
+        pos => {
+          userLat = pos.coords.latitude;
+          userLon = pos.coords.longitude;
+          reverseGeocode(userLat, userLon);
+          startNowUpdater();
+          loadDayView(dayViewDate);
+        },
+        () => useDefaultLocation(),
+        { timeout: 15000, maximumAge: 0, enableHighAccuracy: false }
+      );
+    },
+    { timeout: 10000, maximumAge: 300000, enableHighAccuracy: false }
   );
   // 持续定位
   navigator.geolocation.watchPosition(
@@ -428,8 +442,9 @@ function initLocation() {
 }
 
 function useDefaultLocation() {
-  userLat = 39.9042; userLon = 116.4074;
-  document.getElementById('loc-name').textContent = '📍 北京（默认）';
+  // 默认佛罗伦萨（当定位失败时使用）
+  userLat = 43.7696; userLon = 11.2558;
+  document.getElementById('loc-name').textContent = '📍 佛罗伦萨（默认）';
   startNowUpdater();
   loadDayView(dayViewDate);
 }
@@ -467,7 +482,7 @@ function updateNow() {
   const p    = h.planet;
   const now  = new Date();
   const prog = Math.max(0, Math.min(1, (now-h.startMs)/(h.endMs-h.startMs)));
-  const remain = Math.max(0, Math.round((h.end-now)/60000));
+  const remain = Math.max(0, Math.round((h.endMs-now)/60000));
 
   if (changed) {
     // 星期主宰
