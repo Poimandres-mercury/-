@@ -461,12 +461,12 @@ function updateNow() {
 
   // 检查是否切换了行星时
   const changed = !currentHour || currentHour.planet.id !== h.planet.id ||
-                  currentHour.start.getTime() !== h.start.getTime();
+                  currentHour.start.getTime() !== h.startMs;
   currentHour = h;
 
   const p    = h.planet;
   const now  = new Date();
-  const prog = Math.max(0, Math.min(1, (now-h.start)/(h.end-h.start)));
+  const prog = Math.max(0, Math.min(1, (now-h.startMs)/(h.endMs-h.startMs)));
   const remain = Math.max(0, Math.round((h.end-now)/60000));
 
   if (changed) {
@@ -502,7 +502,7 @@ function updateNow() {
     document.getElementById('magic-toggle').style.background = p.color+'18';
   }
 
-  document.getElementById('hero-time').textContent  = `${fmtTime(h.start)} — ${fmtTime(h.end)}`;
+  document.getElementById('hero-time').textContent  = `${h.startStr} — ${h.endStr}`;
   document.getElementById('progress-fill').style.width = (prog*100)+'%';
   document.getElementById('prog-pct').textContent   = `已过 ${Math.round(prog*100)}%`;
   document.getElementById('prog-remain').textContent = `剩余 ${remain} 分钟`;
@@ -545,8 +545,8 @@ function loadDayView(date) {
 
   // 日出日落
   const st = getSunTimes(date, userLat, userLon);
-  document.getElementById('day-sunrise').textContent = fmtTime(st.sunrise, null);
-  document.getElementById('day-sunset').textContent  = fmtTime(st.sunset, null);
+  document.getElementById('day-sunrise').textContent = st.sunriseStr || '--:--';
+  document.getElementById('day-sunset').textContent  = st.sunsetStr || '--:--';
 
   // 行星时列表
   const hours = getDisplayHours(date, userLat, userLon);
@@ -557,9 +557,9 @@ function loadDayView(date) {
 
 function buildHourRow(h, showExpand=false, tz=null) {
   const wrap = document.createElement('div');
-  const isCur = h.isCurrent || (h.start <= new Date() && h.end > new Date());
-  const startTime = h.startStr || fmtTime(h.start, tz);
-  const endTime   = h.endStr   || fmtTime(h.end,   tz);
+  const now2 = Date.now(); const isCur = h.isCurrent || (h.startMs<=now2 && h.endMs>now2);
+  const startTime = h.startStr || '--:--';
+  const endTime   = h.endStr   || '--:--';
   wrap.className = 'hour-row' + (isCur ? ' current' : '');
   wrap.style.cssText = isCur ? `border:0.5px solid ${h.planet.color}55` : '';
 
@@ -693,8 +693,8 @@ function runSearch() {
         </div>
       </div>
       <div class="sun-bar" style="padding:0 0 10px">
-        <span>🌅 ${fmtTime(st.sunrise, queryTZ)}</span>
-        <span>🌇 ${fmtTime(st.sunset, queryTZ)}</span>
+        <span>🌅 ${st.sunriseStr||'--:--'}</span>
+        <span>🌇 ${st.sunsetStr||'--:--'}</span>
       </div>
     </div>`;
 
@@ -770,12 +770,12 @@ function scheduleNotifications() {
   const today = calcAllHours(now, userLat, userLon);
   const tmr   = calcAllHours(new Date(now.getTime()+86400000), userLat, userLon);
   [...today,...tmr].filter(h=>h.start>now).slice(0,12).forEach(h => {
-    const delay = h.start - now;
+    const delay = h.startMs - now;
     setTimeout(() => {
       new Notification(`${h.planet.symbol} ${h.planet.name}时开始`, {
-        body: `${h.planet.keywords}\n${fmtTime(h.start)} — ${fmtTime(h.end)}`,
+        body: `${h.planet.keywords}\n${h.startStr} — ${h.endStr}`,
         icon: '/public/icon-192.png',
-        tag: `ph-${h.start.getTime()}`,
+        tag: `ph-${h.startMs}`,
         silent: false
       });
     }, delay);
