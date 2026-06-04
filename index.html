@@ -441,10 +441,58 @@ function initLocation() {
   );
 }
 
-function useDefaultLocation() {
-  // 默认佛罗伦萨（当定位失败时使用）
-  userLat = 43.7696; userLon = 11.2558;
-  document.getElementById('loc-name').textContent = '📍 佛罗伦萨（默认）';
+async function useDefaultLocation() {
+  // 定位失败时：先尝试IP定位，再fallback到设备时区推断
+  document.getElementById('loc-name').textContent = '📍 定位中...';
+  try {
+    // 用 ip-api.com 免费IP定位（无需API Key，精度到城市级）
+    const r = await fetch('https://ip-api.com/json/?fields=lat,lon,city,country,timezone');
+    const j = await r.json();
+    if (j.lat && j.lon) {
+      userLat = j.lat;
+      userLon = j.lon;
+      userTimezone = j.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const city = j.city ? `${j.city}` : '当前位置';
+      document.getElementById('loc-name').textContent = `📍 ${city}（IP定位）`;
+      startNowUpdater();
+      loadDayView(dayViewDate);
+      return;
+    }
+  } catch(e) { console.log('IP定位失败:', e); }
+
+  // 最终fallback：用设备时区推断坐标
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const tzCoords = {
+    'Europe/Rome':[43.7696,11.2558], 'Europe/Paris':[48.8566,2.3522],
+    'Europe/London':[51.5074,-0.1278], 'Europe/Berlin':[52.52,13.405],
+    'Europe/Madrid':[40.4168,-3.7038], 'Europe/Athens':[37.9838,23.7275],
+    'Europe/Moscow':[55.7558,37.6176], 'Asia/Shanghai':[31.2304,121.4737],
+    'Asia/Tokyo':[35.6762,139.6503], 'Asia/Seoul':[37.5665,126.978],
+    'Asia/Kolkata':[28.6139,77.209], 'Asia/Dubai':[25.2048,55.2708],
+    'America/New_York':[40.7128,-74.006], 'America/Chicago':[41.8781,-87.6298],
+    'America/Los_Angeles':[34.0522,-118.2437], 'America/Sao_Paulo':[-23.5505,-46.6333],
+    'Australia/Sydney':[-33.8688,151.2093], 'Africa/Cairo':[30.0444,31.2357],
+    'Africa/Johannesburg':[-26.2041,28.0473], 'Pacific/Auckland':[-36.8485,174.7633],
+  };
+  const coords = tzCoords[tz];
+  if (coords) {
+    userLat = coords[0]; userLon = coords[1];
+    const cityNames = {
+      'Europe/Rome':'佛罗伦萨', 'Europe/Paris':'巴黎', 'Europe/London':'伦敦',
+      'Europe/Berlin':'柏林', 'Europe/Madrid':'马德里', 'Europe/Athens':'雅典',
+      'Europe/Moscow':'莫斯科', 'Asia/Shanghai':'上海', 'Asia/Tokyo':'东京',
+      'Asia/Seoul':'首尔', 'Asia/Kolkata':'新德里', 'Asia/Dubai':'迪拜',
+      'America/New_York':'纽约', 'America/Chicago':'芝加哥',
+      'America/Los_Angeles':'洛杉矶', 'America/Sao_Paulo':'圣保罗',
+      'Australia/Sydney':'悉尼', 'Africa/Cairo':'开罗',
+      'Africa/Johannesburg':'约翰内斯堡', 'Pacific/Auckland':'奥克兰',
+    };
+    document.getElementById('loc-name').textContent = `📍 ${cityNames[tz]||tz}（时区推断）`;
+  } else {
+    // 绝对最终fallback：伦敦（UTC中心点）
+    userLat = 51.5074; userLon = -0.1278;
+    document.getElementById('loc-name').textContent = '📍 伦敦（默认）';
+  }
   startNowUpdater();
   loadDayView(dayViewDate);
 }
